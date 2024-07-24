@@ -1,54 +1,30 @@
 package com.comrade.basic;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Properties;
+
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import com.google.gson.JsonParser;
 
 public class KafkaConsumerClient {
-	public static void main(String[] args) {
-		final Logger logger = LoggerFactory.getLogger(KafkaConsumerClient.class);
+	public static KafkaConsumer<String, String> kafkaConsumerClientInstance(String groupId,String bootstrapServer,String topics[]) {
 		Properties properties = new Properties();
-		String groupid = "batman";
-		properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "172.21.0.3:9092");
+		properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer);
 		properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 		properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-		properties.put(ConsumerConfig.GROUP_ID_CONFIG, groupid);
+		properties.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
 		properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+		properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+		properties.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "100");
+		KafkaConsumer<String, String> consumer=new KafkaConsumer<>(properties);
+		consumer.subscribe(Arrays.asList(topics));
+		return consumer;
+	}
 
-		KafkaConsumer<String, String> consumer = new KafkaConsumer<>(properties);
-
-		final Thread mainThread = Thread.currentThread();
-		Runtime.getRuntime().addShutdownHook(new Thread() {
-			@Override
-			public void run() {
-				consumer.wakeup();
-				try {
-					mainThread.join();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-		});
-
-		try {
-			consumer.subscribe(Arrays.asList("important_tweets", "first-topic", "second_topic","batman"));
-			while (true) {
-				ConsumerRecords<String, String> consumerRecords = consumer.poll(Duration.ofMillis(100));
-				consumerRecords.forEach(data -> {
-					logger.info("KEY:" + data.key() + "    VALUE:" + data.value());
-					logger.info("partition:" + data.partition() + "    offset:" + data.offset());
-				});
-			}
-		} catch (Exception e) {
-			logger.error(e.getMessage());
-		} finally {
-			consumer.close();
-		}
+	public static String extractUniqueId(JsonParser jsonParser, String jsonObject,String jsonKey) {
+		return jsonParser.parse(jsonObject).getAsJsonObject().get(jsonKey).getAsString();
 	}
 }
